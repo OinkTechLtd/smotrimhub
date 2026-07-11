@@ -1,0 +1,29 @@
+{
+  "name": "smotrimhub",
+  "version": "1.0.0",
+  "description": "Parses and archives channels from streamlive.freedev.app with SEO optimization.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "archive": "node index.js archive" 
+  },
+  "keywords": [
+    "streaming",
+    "parser",
+    "archiver",
+    "seo",
+    "nodejs"
+  ],
+  "author": "OinktechLtd AI",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "cheerio": "^1.0.0-rc.12",
+    "dayjs": "^1.11.10",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
