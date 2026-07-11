@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const dayjs = require('dayjs');
 
-const SOURCE_URL = process.env.SOURCE_URL || 'https://streamlive.freedev.app';
+const SOURCE_URL = process.env.SOURCE_URL || 'https://streamlive.freedev.appp';
 const SAVE_INTERVAL_DAYS = parseInt(process.env.SAVE_INTERVAL_DAYS || '30', 10);
 const ARCHIVE_DIR = path.join(__dirname, 'archive');
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
