@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{CHANNEL_NAME}} - Archived {{CURRENT_DATE}}</title>
+    <meta name="description" content="Archive of {{CHANNEL_NAME}} from {{SOURCE_URL}}. SEO optimized.">
+    <link rel="canonical" href="{{CHANNEL_URL}}">
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .info { margin-top: 15px; }
+        .label { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{CHANNEL_NAME}}</h1>
+        <p>This is an archived copy of the channel from <strong>{{SOURCE_URL}}</strong>, optimized for search engines.</p>
+        
+        <div class="info">
+            <p><span class="label">Archived On:</span> {{CURRENT_DATE}}</p>
+            <p><span class="label">Original URL:</span> <a href="{{CHANNEL_URL}}">{{CHANNEL_URL}}</a></p>
+            <p><span class="label">Views (at time of archive):</span> {{VIEWS}}</p>
+        </div>
+        
+        <p><em>&copy; [Your Company/Name] {{getCurrentYear}}. All rights reserved.</em></p>
+    </div>
+
+    <script>
+        // Basic SEO script: update current year dynamically
+        document.addEventListener('DOMContentLoaded', () => {
+            const year = new Date().getFullYear();
+            document.querySelectorAll('em').forEach(el => {
+                el.innerHTML = el.innerHTML.replace('{{getCurrentYear}}', year);
+            });
+        });
+    </script>
+</body>
+</html>
