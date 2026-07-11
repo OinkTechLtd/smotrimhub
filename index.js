@@ -1,193 +1,172 @@
+require('dotenv').config();
 const axios = require('axios');
+const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
-const cheerio = require('cheerio');
 const dayjs = require('dayjs');
-
-require('dotenv').config();
 
 const SOURCE_URL = process.env.SOURCE_URL || 'https://streamlive.freedev.app';
 const SAVE_INTERVAL_DAYS = parseInt(process.env.SAVE_INTERVAL_DAYS || '30', 10);
-const DATA_DIR = path.join(__dirname, 'data');
-const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
 const ARCHIVE_DIR = path.join(__dirname, 'archive');
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 
-let cachedChannels = [];
+const log = (level, message) => {
+    if (LOG_LEVEL === 'debug' || LOG_LEVEL === 'info' || LOG_LEVEL === 'warn' || LOG_LEVEL === 'error' && (level === 'debug' && LOG_LEVEL === 'debug' || level === 'info' && (LOG_LEVEL === 'info' || LOG_LEVEL === 'warn' || LOG_LEVEL === 'error') || level === 'warn' && (LOG_LEVEL === 'warn' || LOG_LEVEL === 'error') || level === 'error' && LOG_LEVEL === 'error')) {
+        console.log(`[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] [${level.toUpperCase()}] ${message}`);
+    }
+};
 
-// Создаем директории, если они не существуют
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR);
-}
-if (!fs.existsSync(ARCHIVE_DIR)) {
-    fs.mkdirSync(ARCHIVE_DIR);
-}
+const ensureDirExists = (dirPath) => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        log('info', `Directory created: ${dirPath}`);
+    }
+};
 
-// Функция для загрузки каналов
-async function fetchChannels() {
+const fetchChannelData = async (url) => {
     try {
-        console.log(`Fetching channels from ${SOURCE_URL}...`);
-        const response = await axios.get(SOURCE_URL);
-        const $ = cheerio.load(response.data);
+        const { data } = await axios.get(url);
+        const $ = cheerio.load(data);
         const channels = [];
-
-        // Пример парсинга. Необходимо адаптировать под реальную структуру HTML
-        // Этот код предполагает, что каналы представлены как элементы списка или div'ы с определенным классом
-        // Пример: $('.channel-item').each(...) 
-        // Замените '.channel-item' на реальный селектор.
         
-        // Для примера, предположим, что у нас есть список <a> тегов с каналами
-        // В реальном приложении вам потребуется более точный парсинг HTML.
-        
-        // Пример: предположим, что каждый канал имеет ссылку и название
-        $('a.channel-link').each((index, element) => {
+        $('h3.title').each((_, element) => {
             const channelName = $(element).text().trim();
-            const channelUrl = $(element).attr('href');
+            const channelUrl = $(element).next('a').attr('href');
             if (channelName && channelUrl) {
                 channels.push({
-                    id: index.toString(), // Или другой уникальный идентификатор
                     name: channelName,
-                    url: new URL(channelUrl, SOURCE_URL).toString(), // Полный URL
-                    views: Math.floor(Math.random() * 10000), // Placeholder для просмотров
-                    schedule: `Schedule for ${channelName}` // Placeholder для расписания
+                    url: new URL(channelUrl, SOURCE_URL).href
                 });
             }
         });
-
-        console.log(`Fetched ${channels.length} channels.`);
+        log('debug', `Fetched ${channels.length} channels from ${url}`);
         return channels;
     } catch (error) {
-        console.error('Error fetching channels:', error.message);
+        log('error', `Error fetching channel data from ${url}: ${error.message}`);
         return [];
     }
-}
+};
 
-// Функция для сохранения каналов в файл
-function saveChannelsToFile(channels, filename) {
-    try {
-        fs.writeFileSync(filename, JSON.stringify(channels, null, 2), 'utf-8');
-        console.log(`Channels saved to ${filename}`);
-    } catch (error) {
-        console.error('Error saving channels to file:', error.message);
-    }
-}
-
-// Функция для загрузки каналов из файла
-function loadChannelsFromFile() {
-    if (fs.existsSync(CHANNELS_FILE)) {
-        try {
-            const data = fs.readFileSync(CHANNELS_FILE, 'utf-8');
-            cachedChannels = JSON.parse(data);
-            console.log(`Loaded ${cachedChannels.length} channels from ${CHANNELS_FILE}`);
-        } catch (error) {
-            console.error('Error loading channels from file:', error.message);
-            cachedChannels = [];
-        }
-    }
-}
-
-// Функция для генерации SEO-оптимизированного контента
-function generateSeoContent(channel) {
-    // Здесь будет логика генерации SEO-оптимизированного HTML или текстового контента
-    // Например, создание страницы с описанием канала, его расписанием и ссылками.
-    return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>SmotrimHub - ${channel.name}</title>
-            <meta name="description" content="Watch ${channel.name} live stream on SmotrimHub. Get updates on schedule and views.">
-        </head>
-        <body>
-            <h1>${channel.name}</h1>
-            <p>Current Views: ${channel.views}</p>
-            <h2>Schedule</h2>
-            <p>${channel.schedule}</p>
-            <p>Live stream available at: <a href="${channel.url}">Link</a></p>
-            <p>Content updated regularly.</p>
-        </body>
-        </html>
-    `;
-}
-
-// Функция для сохранения архива
-async function archiveChannels() {
-    console.log('Starting archiving process...');
-    const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss');
-    const archiveFilePath = path.join(ARCHIVE_DIR, `channels_archive_${timestamp}.json`);
+const saveChannelArchive = (channel) => {
+    ensureDirExists(ARCHIVE_DIR);
+    const timestamp = dayjs().format('YYYYMMDD_HHmmss');
+    const safeChannelName = channel.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `${safeChannelName}_${timestamp}.html`;
+    const filepath = path.join(ARCHIVE_DIR, filename);
 
     try {
-        // Сохраняем текущее состояние каналов
-        fs.writeFileSync(archiveFilePath, JSON.stringify(cachedChannels, null, 2), 'utf-8');
-        console.log(`Archive saved to ${archiveFilePath}`);
-
-        // Также можно сохранить SEO-контент для каждого канала
-        for (const channel of cachedChannels) {
-            const seoContent = generateSeoContent(channel);
-            const seoFileName = `${channel.name.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.html`;
-            const seoFilePath = path.join(ARCHIVE_DIR, seoFileName);
-            fs.writeFileSync(seoFilePath, seoContent, 'utf-8');
-            console.log(`SEO content saved for ${channel.name} to ${seoFilePath}`);
-        }
-        console.log('Archiving process completed.');
+        const channelContent = fs.readFileSync(path.join(__dirname, 'templates', 'channel.html'), 'utf-8');
+        const finalContent = channelContent
+            .replace('{{CHANNEL_NAME}}', channel.name)
+            .replace('{{CHANNEL_URL}}', channel.url)
+            .replace('{{CURRENT_DATE}}', dayjs().format('YYYY-MM-DD HH:mm:ss'))
+            .replace('{{SOURCE_URL}}', SOURCE_URL);
+            
+        fs.writeFileSync(filepath, finalContent, 'utf-8');
+        log('info', `Channel archived: ${filename}`);
     } catch (error) {
-        console.error('Error during archiving process:', error.message);
+        log('error', `Error saving archive for channel ${channel.name}: ${error.message}`);
     }
+};
+
+const updateChannelInfo = async (channel) => {
+    try {
+        const { data } = await axios.get(channel.url);
+        const $ = cheerio.load(data);
+        
+        // Example: Extracting view count (adjust selectors based on actual site structure)
+        const viewCount = $('.view-count').first().text().trim(); // This is a placeholder selector
+        log('debug', `Updating info for ${channel.name}: Views - ${viewCount}`);
+        
+        // In a real scenario, you would update a database or a local file with these new details.
+        // For this example, we'll just log it.
+        return { ...channel, views: viewCount || 'N/A' };
+    } catch (error) {
+        log('warn', `Could not update info for ${channel.name}: ${error.message}`);
+        return channel;
+    }
+};
+
+const processChannels = async () => {
+    log('info', 'Starting channel processing...');
+    const channels = await fetchChannelData(SOURCE_URL);
+    
+    if (channels.length === 0) {
+        log('warn', 'No channels found. Skipping processing.');
+        return;
+    }
+
+    ensureDirExists(ARCHIVE_DIR);
+
+    log('info', `Found ${channels.length} channels. Processing...`);
+
+    for (const channel of channels) {
+        // Update channel info (views, schedule, etc.)
+        const updatedChannel = await updateChannelInfo(channel);
+        
+        // Archive the channel periodically
+        const archiveFilePath = path.join(ARCHIVE_DIR, `${updatedChannel.name.replace(/[^a-zA-Z0-9]/g, '_')}_latest.html`); // Keep a 'latest' version
+        if (!fs.existsSync(archiveFilePath) || dayjs(fs.statSync(archiveFilePath).mtime).add(SAVE_INTERVAL_DAYS, 'day').isBefore(dayjs())) {
+            saveChannelArchive(updatedChannel);
+            // Optionally, update a 'latest' archive file
+            try {
+                const timestamp = dayjs().format('YYYYMMDD_HHmmss');
+                const safeChannelName = updatedChannel.name.replace(/[^a-zA-Z0-9]/g, '_');
+                const latestFilename = `${safeChannelName}_latest.html`;
+                const latestFilepath = path.join(ARCHIVE_DIR, latestFilename);
+                const channelContent = fs.readFileSync(path.join(__dirname, 'templates', 'channel.html'), 'utf-8');
+                const finalContent = channelContent
+                    .replace('{{CHANNEL_NAME}}', updatedChannel.name)
+                    .replace('{{CHANNEL_URL}}', updatedChannel.url)
+                    .replace('{{CURRENT_DATE}}', dayjs().format('YYYY-MM-DD HH:mm:ss'))
+                    .replace('{{SOURCE_URL}}', SOURCE_URL);
+                fs.writeFileSync(latestFilepath, finalContent, 'utf-8');
+                log('debug', `Updated latest archive for ${updatedChannel.name}`);
+            } catch (error) {
+                log('error', `Failed to update latest archive for ${updatedChannel.name}: ${error.message}`);
+            }
+        } else {
+            log('debug', `Channel ${updatedChannel.name} already archived recently.`);
+        }
+    }
+    log('info', 'Channel processing finished.');
+};
+
+// Command line argument parsing for specific tasks
+const [, , cmd] = process.argv;
+
+if (cmd === 'archive') {
+    log('info', 'Executing manual archive task...');
+    processChannels().catch(error => {
+        log('error', `Manual archive task failed: ${error.message}`);
+    });
+} else {
+    log('info', 'Starting SmotrimHub application...');
+    // Initial run
+    processChannels();
+
+    // Schedule recurring tasks
+    const intervalMinutes = SAVE_INTERVAL_DAYS * 24 * 60;
+    setInterval(processChannels, intervalMinutes * 60 * 1000); // Convert days to milliseconds
+    log('info', `Scheduled channel processing every ${SAVE_INTERVAL_DAYS} days.`);
 }
 
-// Основная функция для обновления и сохранения
-async function updateAndSave() {
-    const newChannels = await fetchChannels();
-
-    // Обновляем кеш каналов, сохраняя новые и удаляя отсутствующие (или просто перезаписывая)
-    // В данном случае, для простоты, мы просто перезаписываем cachedChannels
-    // Более сложная логика может включать сравнение и обновление существующих каналов.
-    cachedChannels = newChannels;
-
-    // Сохраняем актуальный список каналов
-    saveChannelsToFile(cachedChannels, CHANNELS_FILE);
-
-    // Выполняем архивацию, если прошло достаточно времени
-    // Для первого запуска архивация может быть выполнена сразу или по расписанию
-    // Здесь предполагается, что архивация происходит раз в SAVE_INTERVAL_DAYS
-    // Более точная логика могла бы проверять дату последнего архивирования.
-    console.log(`Next archiving will be based on interval of ${SAVE_INTERVAL_DAYS} days.`);
-    // Можно добавить проверку текущей даты и даты последнего архивирования для точного запуска
-    // Например: if (dayjs().diff(lastArchiveDate, 'days') >= SAVE_INTERVAL_DAYS) { archiveChannels(); lastArchiveDate = dayjs(); }
-}
-
-// Функция для периодического добавления новых каналов (имитация)
-// В реальном приложении эта логика будет частью fetchChannels или отдельным процессом
-async function addNewChannelsPeriodically() {
-    // Эта функция предполагает, что fetchChannels уже возвращает актуальный список,
-    // включая новые каналы, которые появились на SOURCE_URL.
-    // Если нужно добавить каналы, которых НЕТ на SOURCE_URL, эта функция должна быть иной.
-    // Для данной задачи, предполагается, что новые каналы появляются на SOURCE_URL
-    // и fetchChannels их подхватывает.
-    console.log('Checking for new channels to add (handled by fetchChannels).');
-}
-
-// Основная логика запуска
-async function main() {
-    console.log('SmotrimHub starting...');
-
-    loadChannelsFromFile(); // Загружаем предыдущие данные
-
-    // Первый запуск: обновление каналов и сохранение
-    await updateAndSave();
-
-    // Периодическая архивация (например, каждые SAVE_INTERVAL_DAYS)
-    // Это простой пример, в реальном приложении нужна более надежная система планирования
-    setInterval(async () => {
-        console.log('\n--- Running scheduled tasks ---');
-        await updateAndSave(); // Обновляем данные
-        await archiveChannels(); // Выполняем архивацию
-        await addNewChannelsPeriodically(); // Проверяем и добавляем новые каналы
-        console.log('--- Scheduled tasks finished ---\n');
-    }, SAVE_INTERVAL_DAYS * 24 * 60 * 60 * 1000); // Интервал в миллисекундах
-
-}
-
-main().catch(error => {
-    console.error('An unexpected error occurred in main:', error);
-});
+// Placeholder for a template file (create a 'templates' directory and 'channel.html' inside it)
+// Example content for templates/channel.html:
+// <!DOCTYPE html>
+// <html lang="en">
+// <head>
+//     <meta charset="UTF-8">
+//     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//     <title>{{CHANNEL_NAME}} - Archived {{CURRENT_DATE}}</title>
+//     <meta name="description" content="Archive of {{CHANNEL_NAME}} from {{SOURCE_URL}}">
+//     <link rel="canonical" href="{{CHANNEL_URL}}">
+// </head>
+// <body>
+//     <h1>{{CHANNEL_NAME}}</h1>
+//     <p>This is an archived copy of the channel from {{SOURCE_URL}}.</p>
+//     <p>Archived on: {{CURRENT_DATE}}</p>
+//     <p>Original URL: <a href="{{CHANNEL_URL}}">{{CHANNEL_URL}}</a></p>
+//     <p>Current Views (as of archive): {{VIEWS}}</p>
+// </body>
+// </html>

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "archive": "node index.js archive" 
+    "archive": "node index.js archive",
+    "deploy:vercel": "vercel --prod"
   },
   "keywords": [
     "streaming",
@@ -22,6 +23,9 @@
     "cheerio": "^1.0.0-rc.12",
     "dayjs": "^1.11.10",
     "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "vercel": "latest"
   },
   "engines": {
     "node": ">=18.0.0"

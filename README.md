@@ -6,7 +6,7 @@ SmotrimHub - это NodeJS приложение, которое парсит к�
 
 1.  Клонируйте репозиторий:
     ```bash
-    git clone <URL_РЕПОЗИТОРИЯ>
+    git clone https://github.com/YOUR_USERNAME/SmotrimHub.git
     cd SmotrimHub
     ```
 
@@ -20,6 +20,7 @@ SmotrimHub - это NodeJS приложение, которое парсит к�
     ```env
     SOURCE_URL=https://streamlive.freedev.app
     SAVE_INTERVAL_DAYS=30
+    LOG_LEVEL=info
     ```
 
 ## Запуск
@@ -37,6 +38,8 @@ npm install -g pm2
 pm2 start index.js --name smotrimhub --watch
 ```
 
+Для запуска на Vercel, убедитесь, что у вас настроен `vercel.json` (если требуется специфичная конфигурация, иначе Vercel сможет запустить `npm start` автоматически).
+
 ## Как это работает
 
 Приложение выполняет следующие задачи:
@@ -49,3 +52,5 @@ pm2 start index.js --name smotrimhub --watch
 ## Лицензия
 
 MIT License
+
+[СДЕЛАНО С ИИ ОТ КОМАНДЫ OINKTECHLTD]
